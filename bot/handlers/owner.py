@@ -5,10 +5,11 @@ question or uses a command.
 """
 
 import logging
+from zoneinfo import ZoneInfo
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramAPIError
-from aiogram.filters import CommandStart, Filter
+from aiogram.filters import Command, CommandStart, Filter
 from aiogram.types import Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,6 +19,7 @@ from app.services.escalations import (
     get_escalation_by_owner_message,
     mark_answered,
 )
+from app.services.stats import Stats, get_stats
 from bot.keyboards import booking_keyboard
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,18 @@ OWNER_HELP = (
     "Это чат владельца «{business_name}».\n\n"
     "Сюда приходят вопросы клиентов, на которые бот не нашёл ответа в базе "
     "знаний. Чтобы ответить клиенту, ответьте (reply) на сообщение с вопросом — "
-    "бот перешлёт ваш ответ."
+    "бот перешлёт ваш ответ.\n\n"
+    "/stats — сколько клиентов написали боту."
+)
+STATS = (
+    "📊 «{business_name}»: бот в цифрах\n\n"
+    "Сегодня:\n"
+    "• клиентов: {today_clients}\n"
+    "• сообщений от клиентов: {today_messages}\n\n"
+    "За 7 дней:\n"
+    "• клиентов: {week_clients}\n"
+    "• сообщений от клиентов: {week_messages}\n\n"
+    "Вопросов ждут вашего ответа: {open_escalations}"
 )
 QUESTION_FOR_OWNER = (
     "❓ Вопрос от клиента {who}:\n\n"
@@ -78,6 +91,23 @@ async def forward_to_owner(
 @router.message(CommandStart())
 async def owner_start(message: Message) -> None:
     await message.answer(OWNER_HELP.format(business_name=settings.business_name))
+
+
+@router.message(Command("stats"))
+async def stats(message: Message, session: AsyncSession) -> None:
+    result = await get_stats(session, ZoneInfo(settings.bot_timezone))
+    await message.answer(format_stats(result))
+
+
+def format_stats(stats: Stats) -> str:
+    return STATS.format(
+        business_name=settings.business_name,
+        today_clients=stats.today.clients,
+        today_messages=stats.today.messages,
+        week_clients=stats.week.clients,
+        week_messages=stats.week.messages,
+        open_escalations=stats.open_escalations,
+    )
 
 
 @router.message(F.text, F.reply_to_message)

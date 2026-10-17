@@ -10,7 +10,8 @@ import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from aiogram.types import BotCommand, BotCommandScopeDefault
+from aiogram.exceptions import TelegramAPIError
+from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 
 from app.config import settings
 from app.database import engine, session_factory
@@ -23,6 +24,11 @@ logger = logging.getLogger("bot")
 COMMANDS = [
     BotCommand(command="start", description="Начать"),
     BotCommand(command="reset", description="Очистить историю переписки"),
+]
+# Replaces the default menu in the owner chat.
+OWNER_COMMANDS = [
+    BotCommand(command="start", description="Как отвечать клиентам"),
+    BotCommand(command="stats", description="Статистика бота"),
 ]
 
 
@@ -88,6 +94,19 @@ async def run() -> None:
         )
 
         await bot.set_my_commands(COMMANDS, scope=BotCommandScopeDefault())
+        try:
+            await bot.set_my_commands(
+                OWNER_COMMANDS,
+                scope=BotCommandScopeChat(chat_id=settings.owner_chat_id),
+            )
+        except TelegramAPIError as exc:
+            # Telegram does not know the chat until the owner writes to the bot.
+            logger.warning(
+                "owner chat %s not reachable yet (%s) — the owner should send "
+                "/start to the bot, otherwise escalations cannot be delivered",
+                settings.owner_chat_id,
+                exc,
+            )
         await dispatcher.start_polling(bot, system_prompt=system_prompt)
     finally:
         await bot.session.close()
