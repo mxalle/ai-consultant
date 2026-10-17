@@ -10,7 +10,7 @@ import sys
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
-from aiogram.exceptions import TelegramAPIError
+from aiogram.exceptions import TelegramAPIError, TelegramUnauthorizedError
 from aiogram.types import BotCommand, BotCommandScopeChat, BotCommandScopeDefault
 
 from app.config import settings
@@ -82,7 +82,10 @@ async def run() -> None:
     dispatcher = build_dispatcher()
 
     try:
-        me = await bot.get_me()
+        try:
+            me = await bot.get_me()
+        except TelegramUnauthorizedError:
+            raise SystemExit("Telegram rejected TELEGRAM_BOT_TOKEN — check it in @BotFather.")
         logger.info(
             "starting as @%s (id=%s) for %r, knowledge %s (%d chars), model %s",
             me.username,
