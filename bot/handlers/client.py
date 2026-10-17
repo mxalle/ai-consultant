@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import Role
 from app.services.conversations import clear_history, get_history, save_message
+from bot.handlers.owner import forward_to_owner
 from bot.keyboards import booking_keyboard
 from bot.llm import LLMError, ask_llm
 from bot.prompt import parse_reply, truncate
@@ -32,7 +33,8 @@ FALLBACK = (
     "Сейчас не могу ответить, напишите, пожалуйста, чуть позже "
     "или запишитесь по кнопке."
 )
-ONLY_TEXT = "Пока понимаю только текст. Напишите, пожалуйста, вопрос словами."
+ESCALATED = "Уточню у администратора и вернусь с ответом."
+ONLY_TEXT ="Пока понимаю только текст. Напишите, пожалуйста, вопрос словами."
 UNKNOWN_COMMAND = "Такой команды нет. Просто напишите свой вопрос — или /start."
 
 
@@ -82,8 +84,11 @@ async def question(
         return
 
     escalate, answer = parse_reply(raw)
-    if escalate or not answer:
-        answer = FALLBACK
+    if escalate:
+        forwarded = await forward_to_owner(
+            session, bot, chat_id, message.from_user.username, text
+        )
+        answer = ESCALATED if forwarded else FALLBACK
 
     await save_message(session, chat_id, Role.assistant, answer)
     # Model output is sent as plain text: stray markdown/HTML must not break it.
