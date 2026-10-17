@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai-consultant-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-consultant}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-consultant}
+      POSTGRES_DB: ${POSTGRES_DB:-consultant}
+    # 5433 on the host so it can run next to tutor-tab's postgres on 5432.
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-consultant} -d ${POSTGRES_DB:-consultant}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
