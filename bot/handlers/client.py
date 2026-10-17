@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models import Role
 from app.services.conversations import clear_history, get_history, save_message
+from app.services.rate_limit import is_rate_limited
 from bot.handlers.owner import forward_to_owner
 from bot.keyboards import booking_keyboard
 from bot.llm import LLMError, ask_llm
@@ -34,6 +35,10 @@ FALLBACK = (
     "или запишитесь по кнопке."
 )
 ESCALATED = "Уточню у администратора и вернусь с ответом."
+RATE_LIMITED = (
+    "Вы написали очень много сообщений за последний час — давайте сделаем "
+    "паузу. Напишите, пожалуйста, чуть позже или запишитесь по кнопке."
+)
 ONLY_TEXT ="Пока понимаю только текст. Напишите, пожалуйста, вопрос словами."
 UNKNOWN_COMMAND = "Такой команды нет. Просто напишите свой вопрос — или /start."
 
@@ -63,6 +68,11 @@ async def question(
 ) -> None:
     """A client question: history + knowledge base -> LLM -> answer."""
     chat_id = message.chat.id
+    if await is_rate_limited(session, chat_id, settings.rate_limit_per_hour):
+        logger.info("rate limited chat_id=%s", chat_id)
+        await message.answer(RATE_LIMITED, reply_markup=booking_keyboard())
+        return
+
     text = truncate(message.text)
     await save_message(
         session, chat_id, Role.user, text, username=message.from_user.username
