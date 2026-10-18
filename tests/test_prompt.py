@@ -22,6 +22,8 @@ def test_prompt_carries_business_name_and_knowledge() -> None:
     prompt = build_system_prompt("Барбершоп «Тест»", knowledge)
 
     assert "Барбершоп «Тест»" in prompt
+    # The name goes in as is, not wrapped in another pair of quotes.
+    assert "«Барбершоп" not in prompt
     assert knowledge in prompt
     assert ESCALATE_MARKER in prompt
 

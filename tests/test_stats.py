@@ -64,6 +64,6 @@ async def test_stats_text_shows_the_numbers(session: AsyncSession) -> None:
 
     text = owner.format_stats(await get_stats(session, MOSCOW, now=NOW))
 
-    assert "Барбершоп «Тест»" in text
+    assert "📊 Барбершоп «Тест»: бот в цифрах" in text
     assert "За 7 дней:\n• клиентов: 1\n• сообщений от клиентов: 1" in text
     assert "Вопросов ждут вашего ответа: 1" in text

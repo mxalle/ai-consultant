@@ -25,14 +25,14 @@ from bot.keyboards import booking_keyboard
 logger = logging.getLogger(__name__)
 
 OWNER_HELP = (
-    "Это чат владельца «{business_name}».\n\n"
+    "Чат владельца: {business_name}.\n\n"
     "Сюда приходят вопросы клиентов, на которые бот не нашёл ответа в базе "
     "знаний. Чтобы ответить клиенту, ответьте (reply) на сообщение с вопросом — "
     "бот перешлёт ваш ответ.\n\n"
     "/stats — сколько клиентов написали боту."
 )
 STATS = (
-    "📊 «{business_name}»: бот в цифрах\n\n"
+    "📊 {business_name}: бот в цифрах\n\n"
     "Сегодня:\n"
     "• клиентов: {today_clients}\n"
     "• сообщений от клиентов: {today_messages}\n\n"
