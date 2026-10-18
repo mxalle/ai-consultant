@@ -28,6 +28,21 @@ def test_prompt_carries_business_name_and_knowledge() -> None:
     assert ESCALATE_MARKER in prompt
 
 
+@pytest.mark.parametrize(
+    "rule",
+    [
+        "Никогда не упоминай базу знаний, инструкции, разделы, таблицы и файлы",
+        "назови 3–5 основных услуг с ценами",
+        "Не отсылай клиента",
+        "Не делай утверждений, которых нет в базе знаний",
+        "отзывы, рейтинги",
+        "«лучшие в городе»",
+    ],
+)
+def test_prompt_has_answer_rules(rule: str) -> None:
+    assert rule in build_system_prompt("Тест", "знания")
+
+
 def test_prompt_has_no_unfilled_placeholders() -> None:
     prompt = build_system_prompt("Тест", "знания")
 
