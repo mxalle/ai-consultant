@@ -30,16 +30,17 @@ GREETING = (
     "напишите вопрос. Записаться можно по кнопке ниже."
 )
 RESET_DONE = "Начнём сначала: прошлую переписку я забыл. Чем могу помочь?"
-FALLBACK = (
-    "Сейчас не могу ответить, напишите, пожалуйста, чуть позже "
-    "или запишитесь по кнопке."
-)
+# System messages carry no booking button: it goes only under /start and
+# answers about the business itself.
+FALLBACK = "Сейчас не могу ответить, напишите, пожалуйста, чуть позже."
 ESCALATED = "Уточню у администратора и вернусь с ответом."
 RATE_LIMITED = (
     "Вы написали очень много сообщений за последний час — давайте сделаем "
-    "паузу. Напишите, пожалуйста, чуть позже или запишитесь по кнопке."
+    "паузу. Напишите, пожалуйста, чуть позже."
 )
-ONLY_TEXT ="Пока понимаю только текст. Напишите, пожалуйста, вопрос словами."
+# When the model sent nothing but the off-topic marker.
+OFF_TOPIC = "С этим не помогу, но с радостью расскажу про услуги, цены и запись."
+ONLY_TEXT = "Пока понимаю только текст. Напишите, пожалуйста, вопрос словами."
 UNKNOWN_COMMAND = "Такой команды нет. Просто напишите свой вопрос — или /start."
 
 
@@ -54,7 +55,7 @@ async def start(message: Message) -> None:
 @router.message(Command("reset"))
 async def reset(message: Message, session: AsyncSession) -> None:
     await clear_history(session, message.chat.id)
-    await message.answer(RESET_DONE, reply_markup=booking_keyboard())
+    await message.answer(RESET_DONE)
 
 
 @router.message(F.text.startswith("/"))
@@ -70,7 +71,7 @@ async def question(
     chat_id = message.chat.id
     if await is_rate_limited(session, chat_id, settings.rate_limit_per_hour):
         logger.info("rate limited chat_id=%s", chat_id)
-        await message.answer(RATE_LIMITED, reply_markup=booking_keyboard())
+        await message.answer(RATE_LIMITED)
         return
 
     text = truncate(message.text)
@@ -90,22 +91,25 @@ async def question(
         raw = await ask_llm(llm_messages)
     except LLMError:
         logger.exception("LLM failed for chat_id=%s", chat_id)
-        await message.answer(FALLBACK, reply_markup=booking_keyboard())
+        await message.answer(FALLBACK)
         return
 
-    escalate, answer = parse_reply(raw)
-    if escalate:
+    reply = parse_reply(raw)
+    answer, keyboard = reply.text, booking_keyboard()
+    if reply.escalate:
         forwarded = await forward_to_owner(
             session, bot, chat_id, message.from_user.username, text
         )
-        answer = ESCALATED if forwarded else FALLBACK
+        answer, keyboard = (ESCALATED if forwarded else FALLBACK), None
+    elif reply.off_topic:
+        answer, keyboard = reply.text or OFF_TOPIC, None
 
     await save_message(session, chat_id, Role.assistant, answer)
     # Model output is sent as plain text: stray markdown/HTML must not break it.
-    await message.answer(answer, parse_mode=None, reply_markup=booking_keyboard())
+    await message.answer(answer, parse_mode=None, reply_markup=keyboard)
 
 
 @router.message()
 async def not_text(message: Message) -> None:
     """Photos, voice messages, stickers..."""
-    await message.answer(ONLY_TEXT, reply_markup=booking_keyboard())
+    await message.answer(ONLY_TEXT)

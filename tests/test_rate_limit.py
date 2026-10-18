@@ -11,7 +11,7 @@ from app.models import ChatMessage, Role, utcnow
 from app.services.conversations import clear_history, get_or_create_conversation, save_message
 from app.services.rate_limit import is_rate_limited
 from bot.handlers import client
-from tests.fakes import FakeLLM, answered_text, make_bot, make_message
+from tests.fakes import FakeLLM, answered_text, has_booking_button, make_bot, make_message
 
 ALICE, BOB = 11, 22
 LIMIT = 3
@@ -30,6 +30,7 @@ async def test_limit_hits_on_the_n_plus_first_message(
 
     assert [answered_text(m) for m in messages[:LIMIT]] == ["Ответ"] * LIMIT
     assert answered_text(messages[LIMIT]) == client.RATE_LIMITED
+    assert not has_booking_button(messages[LIMIT])
     assert len(llm.calls) == LIMIT
     # The refused message is not stored and so does not prolong the limit.
     stored = await session.scalar(

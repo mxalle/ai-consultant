@@ -11,7 +11,7 @@ from app.services.conversations import get_history, save_message
 from app.services.escalations import create_escalation
 from bot.handlers import build_router, client, owner
 from tests.conftest import OWNER_CHAT_ID
-from tests.fakes import FakeLLM, answered_text, make_bot, make_message
+from tests.fakes import FakeLLM, answered_text, has_booking_button, make_bot, make_message
 
 ALICE, BOB = 11, 22
 
@@ -40,6 +40,7 @@ async def test_escalated_question_goes_to_the_owner(
     assert escalation.status is EscalationStatus.open
     assert answered_text(message) == client.ESCALATED
     assert "[ESCALATE]" not in answered_text(message)
+    assert not has_booking_button(message)
 
 
 async def test_unreachable_owner_means_no_promise_to_the_client(
@@ -53,6 +54,7 @@ async def test_unreachable_owner_means_no_promise_to_the_client(
     await client.question(message, session=session, bot=tg_bot, system_prompt="SYS")
 
     assert answered_text(message) == client.FALLBACK
+    assert not has_booking_button(message)
     assert await session.scalar(select(Escalation)) is None
 
 
@@ -72,6 +74,7 @@ async def test_owner_reply_reaches_the_right_client(session: AsyncSession) -> No
     await session.refresh(bobs)
     assert bobs.status is EscalationStatus.answered
     assert answered_text(reply) == owner.SENT
+    assert "reply_markup" not in tg_bot.send_message.call_args.kwargs
     # The answer is part of Bob's context now, and only Bob's.
     assert (await get_history(session, BOB))[-1].text == "Извините, разберёмся"
     assert (await get_history(session, ALICE))[-1].text == "Можно скидку?"

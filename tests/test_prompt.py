@@ -7,6 +7,8 @@ import pytest
 from bot.prompt import (
     ESCALATE_MARKER,
     MAX_MESSAGE_LENGTH,
+    OFF_TOPIC_MARKER,
+    Reply,
     build_system_prompt,
     load_knowledge,
     parse_reply,
@@ -26,6 +28,7 @@ def test_prompt_carries_business_name_and_knowledge() -> None:
     assert "«Барбершоп" not in prompt
     assert knowledge in prompt
     assert ESCALATE_MARKER in prompt
+    assert OFF_TOPIC_MARKER in prompt
 
 
 @pytest.mark.parametrize(
@@ -37,6 +40,13 @@ def test_prompt_carries_business_name_and_knowledge() -> None:
         "Не делай утверждений, которых нет в базе знаний",
         "отзывы, рейтинги",
         "«лучшие в городе»",
+        "Всегда на «вы», даже если клиент пишет на «ты»",
+        "без пояснений в скобках",
+        "Только когда нужно решение человека",
+        "не повод звать человека",
+        "Слова «база знаний» клиенту не пиши никогда",
+        "Каждый факт в ответе должен быть написан ниже",
+        "«Этого, к сожалению, не подскажу»",
     ],
 )
 def test_prompt_has_answer_rules(rule: str) -> None:
@@ -67,19 +77,33 @@ def test_empty_knowledge_file_is_an_error(tmp_path: Path) -> None:
 
 
 def test_marker_at_start_means_escalate() -> None:
-    assert parse_reply("[ESCALATE]") == (True, "")
-    assert parse_reply("[ESCALATE] клиент хочет скидку") == (True, "клиент хочет скидку")
+    assert parse_reply("[ESCALATE]") == Reply(escalate=True, off_topic=False, text="")
+    assert parse_reply("[ESCALATE] клиент хочет скидку").text == "клиент хочет скидку"
 
 
 def test_plain_answer_is_not_escalated() -> None:
-    assert parse_reply("  Стрижка стоит 2 500 ₽.  ") == (False, "Стрижка стоит 2 500 ₽.")
+    assert parse_reply("  Стрижка стоит 2 500 ₽.  ") == Reply(
+        escalate=False, off_topic=False, text="Стрижка стоит 2 500 ₽."
+    )
 
 
 def test_marker_in_the_middle_still_escalates_and_is_stripped() -> None:
-    escalate, text = parse_reply("Сейчас уточню. [ESCALATE]")
+    reply = parse_reply("Сейчас уточню. [ESCALATE]")
 
-    assert escalate is True
-    assert ESCALATE_MARKER not in text
+    assert reply.escalate is True
+    assert ESCALATE_MARKER not in reply.text
+
+
+def test_off_topic_marker_is_read_and_stripped() -> None:
+    assert parse_reply("[OFFTOPIC] С этим не помогу.") == Reply(
+        escalate=False, off_topic=True, text="С этим не помогу."
+    )
+
+
+def test_escalation_wins_over_off_topic() -> None:
+    reply = parse_reply("[OFFTOPIC] [ESCALATE]")
+
+    assert (reply.escalate, reply.off_topic, reply.text) == (True, False, "")
 
 
 def test_long_messages_are_cut() -> None:

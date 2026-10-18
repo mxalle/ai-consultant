@@ -16,7 +16,7 @@ from app.models import ChatMessage, Role
 from bot import llm
 from bot.handlers import client
 from bot.main import missing_settings
-from tests.fakes import answered_text, make_bot, make_message
+from tests.fakes import answered_text, has_booking_button, make_bot, make_message
 
 ALICE = 11
 REQUEST = httpx2.Request("POST", "https://llm.example/v1/chat/completions")
@@ -86,7 +86,7 @@ async def test_llm_error_gives_the_client_the_fallback(
         await client.question(message, session=session, bot=make_bot(), system_prompt="SYS")
 
     assert answered_text(message) == client.FALLBACK
-    assert message.answer.call_args.kwargs["reply_markup"].inline_keyboard[0][0].text == "Записаться"
+    assert not has_booking_button(message)
     assert "LLM failed" in caplog.text
     # No made-up answer lands in the history.
     roles = (await session.scalars(select(ChatMessage.role))).all()

@@ -36,6 +36,11 @@ def answered_text(message: Any) -> str:
     return args[0] if args else kwargs["text"]
 
 
+def has_booking_button(message: Any) -> bool:
+    """Whether the last `message.answer(...)` carried the «Записаться» button."""
+    return message.answer.call_args.kwargs.get("reply_markup") is not None
+
+
 class FakeLLM:
     """Replaces `ask_llm`: returns canned replies and remembers what it was sent."""
 

@@ -12,7 +12,7 @@ from app.services.conversations import (
 )
 from bot.handlers import client
 from bot.prompt import MAX_MESSAGE_LENGTH
-from tests.fakes import FakeLLM, answered_text, make_bot, make_message
+from tests.fakes import FakeLLM, answered_text, has_booking_button, make_bot, make_message
 
 ALICE, BOB = 11, 22
 
@@ -91,6 +91,26 @@ async def test_answer_is_plain_text_with_booking_button(
     assert button.url == "https://booking.example/test"
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("[OFFTOPIC] Код не пишу, но расскажу про стрижки.", "Код не пишу, но расскажу про стрижки."),
+        ("[OFFTOPIC]", client.OFF_TOPIC),
+    ],
+    ids=["with-text", "marker-only"],
+)
+async def test_off_topic_refusal_has_no_booking_button(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch, raw: str, expected: str
+) -> None:
+    monkeypatch.setattr(client, "ask_llm", FakeLLM(raw))
+    message = make_message(ALICE, "Напиши мне код на Python")
+
+    await client.question(message, session=session, bot=make_bot(), system_prompt="SYS")
+
+    assert answered_text(message) == expected
+    assert not has_booking_button(message)
+
+
 async def test_long_message_is_cut_before_the_llm(
     session: AsyncSession, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -109,3 +129,4 @@ async def test_non_text_gets_only_text_reply() -> None:
     await client.not_text(message)
 
     assert answered_text(message) == client.ONLY_TEXT
+    assert not has_booking_button(message)

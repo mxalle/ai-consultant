@@ -20,7 +20,6 @@ from app.services.escalations import (
     mark_answered,
 )
 from app.services.stats import Stats, get_stats
-from bot.keyboards import booking_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +123,6 @@ async def owner_reply(message: Message, session: AsyncSession, bot: Bot) -> None
         await bot.send_message(
             escalation.chat_id,
             ANSWER_FOR_CLIENT.format(text=message.text),
-            reply_markup=booking_keyboard(),
         )
     except TelegramAPIError:
         logger.exception("cannot deliver owner answer to chat_id=%s", escalation.chat_id)
