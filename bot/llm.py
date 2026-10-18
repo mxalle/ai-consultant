@@ -29,12 +29,14 @@ def get_client() -> AsyncOpenAI:
 
 async def ask_llm(messages: list[dict[str, str]]) -> str:
     """Send the chat (system prompt first) and return the answer text."""
+    extra_body = {"reasoning": {"enabled": False}} if settings.llm_disable_reasoning else None
     try:
         response = await get_client().chat.completions.create(
             model=settings.llm_model,
             messages=messages,
             temperature=0.3,
             max_tokens=400,
+            extra_body=extra_body,
         )
     except OpenAIError as exc:
         raise LLMError(f"{type(exc).__name__}: {exc}") from exc

@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
+from app.config import Settings, settings
 from app.models import ChatMessage, Role
 from bot import llm
 from bot.handlers import client
@@ -42,6 +42,26 @@ async def test_answer_comes_from_the_configured_model(create: AsyncMock) -> None
     assert await llm.ask_llm(messages) == "Стрижка — 2 500 ₽."
     assert create.call_args.kwargs["model"] == "test-model"
     assert create.call_args.kwargs["messages"] == messages
+
+
+@pytest.mark.parametrize(
+    ("disable", "extra_body"),
+    [(False, None), (True, {"reasoning": {"enabled": False}})],
+    ids=["default", "disabled"],
+)
+async def test_reasoning_is_switched_off_only_when_asked(
+    create: AsyncMock, disable: bool, extra_body: dict[str, Any] | None
+) -> None:
+    settings.llm_disable_reasoning = disable
+    create.return_value = completion("Да.")
+
+    await llm.ask_llm([{"role": "user", "content": "Работаете сегодня?"}])
+
+    assert create.call_args.kwargs["extra_body"] == extra_body
+
+
+def test_reasoning_stays_on_by_default() -> None:
+    assert Settings.model_fields["llm_disable_reasoning"].default is False
 
 
 @pytest.mark.parametrize(

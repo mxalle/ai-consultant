@@ -60,6 +60,7 @@ docker compose up -d              # postgres на localhost:5433
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL` | у провайдера LLM; примеры — в `.env.example` |
 
 Необязательные: `RATE_LIMIT_PER_HOUR` (30), `LLM_TIMEOUT` (30 с),
+`LLM_DISABLE_REASONING` (`false`; `true` для thinking-моделей на OpenRouter),
 `BOT_TIMEZONE` (`Europe/Moscow`, для «сегодня» в `/stats`), `DEBUG`.
 
 Если чего-то не хватает, бот не стартует и перечисляет, каких переменных нет.

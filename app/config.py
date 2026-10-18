@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     llm_model: str = ""
     # Seconds to wait for one completion before the client gets the fallback text.
     llm_timeout: float = 30.0
+    # Send OpenRouter's `reasoning: {enabled: false}` so thinking models answer
+    # straight away. Off by default: other providers may reject the extra field.
+    llm_disable_reasoning: bool = False
 
     # Client messages per rolling hour before the bot politely stops answering.
     rate_limit_per_hour: int = 30
